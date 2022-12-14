@@ -17,7 +17,7 @@ D2 = 0.1
 
 tvals = np.arange(0, 25+dt, dt)   #create time values
 trange = [0, 25]
-xyvals = np.linspace(-L, L, n)   #create meshgrid for the x and y values
+xyvals = np.linspace(-L, L, n, endpoint=False)   #create meshgrid for the x and y values
 X, Y = np.meshgrid(xyvals, xyvals)
 
 A1 = X
@@ -40,8 +40,7 @@ A4 = np.imag(UVhat0vector)
 
 r1 = np.arange(0,n/2,1)   #generate k values
 r2 = np.arange(-n/2,0,1)
-kx = (2 * np.pi / L) * np.concatenate((r1,r2))
-kx[0] = 10 ** (-6)
+kx = (np.pi / L) * np.concatenate((r1,r2))
 ky = kx.copy()
 [KX, KY] = np.meshgrid(kx, ky)   #create the meshgrid for the kx and ky values
 
@@ -75,14 +74,17 @@ A6 = np.imag(solFFTy)
 UhatVectorSol = solFFTy[0:n**2, :]   #unstack all of the U hat and V hat vectors for each t value
 VhatVectorSol = solFFTy[n**2:, :]
 
-A7 = np.real(UhatVectorSol[4, :])
+A7 = np.array([np.real(UhatVectorSol[:, 4])]).T
 
-UhatSol = UhatVectorSol.reshape((n, n, len(tvals))).T   #reshape all of the U hat and V hat vectors to matrices for each t value
-VhatSol = VhatVectorSol.reshape((n, n, len(tvals))).T
+UhatVectorSolT = UhatVectorSol[:, 4]
+VhatVectorSolT = VhatVectorSol[:, 4]
 
-A8 = np.real(UhatSol)
+UhatSolT = UhatVectorSolT.reshape((n, n)).T   #reshape all of the U hat and V hat vectors to matrices for each t value
+VhatSolT = VhatVectorSolT.reshape((n, n)).T
 
-A9 = np.real(ifft2(UhatSol[4, :, :]))
+A8 = np.real(UhatSolT)
+
+A9 = np.real(ifft2(UhatSolT))
 
 '''fig,ax = plt.subplots(subplot_kw = {"projection":"3d"}, figsize=(7, 7))   #plot the U solution at t=2
 surf = ax.plot_surface(X, Y, A9, cmap='magma')
@@ -166,18 +168,18 @@ A14 = solChebY.T
 UvectorSol = solChebY[0:(n-1)**2, :]   #unstack all of the U and V vectors for each t value
 VvectorSol = solChebY[(n-1)**2:, :]
 
-A15 = VvectorSol[:, 4]
+A15 = np.array([VvectorSol[:, 4]]).T
 
-Usol = UvectorSol.reshape((n-1, n-1, len(tvals))).T   #reshape all of the U and V vectors to matrices for each t value
-Vsol = VvectorSol.reshape((n-1, n-1, len(tvals))).T
+UvectorSolT = UvectorSol[:, 4]
+VvectorSolT = VvectorSol[:, 4]
 
-Utsol = Usol[4, :, :]   #get the U and V solutions at t=2
-Vtsol = Vsol[4, :, :]
+Utsol = UvectorSolT.reshape((n-1, n-1)).T   #reshape all of the U and V vectors to matrices for each t value
+Vtsol = VvectorSolT.reshape((n-1, n-1)).T
 
-Utsol = np.pad(Utsol, [1,1])
+Utsol = np.pad(Utsol, [1,1])   #pad the matrix with zeros on the rows and columns
 Vtsol = np.pad(Vtsol, [1,1])
 
-A16 = Utsol
+A16 = Vtsol
 
 y = x.copy()   #create y values and generate X and Y meshgrids
 [X, Y] = np.meshgrid(x, y)
