@@ -22,8 +22,8 @@ X, Y = np.meshgrid(xyvals, xyvals)
 
 A1 = X
 
-Uvals = (np.tanh(np.sqrt(X**2+Y**2))-alpha)*np.cos(m*np.angle(X+1j*Y) - np.sqrt(X**2+Y**2))   #define initial conditions
-Vvals = (np.tanh(np.sqrt(X**2+Y**2))-alpha)*np.sin(m*np.angle(X+1j*Y) - np.sqrt(X**2+Y**2))
+Uvals = (np.tanh(np.sqrt(X ** 2 + Y ** 2)) - alpha) * np.cos(m * np.angle(X + 1j * Y) - np.sqrt(X ** 2 + Y ** 2))   #define initial conditions
+Vvals = (np.tanh(np.sqrt(X ** 2 + Y ** 2)) - alpha) * np.sin(m * np.angle(X + 1j * Y) - np.sqrt(X ** 2 + Y ** 2))
 
 A2 = Uvals
 
@@ -32,7 +32,7 @@ Vhat0 = fft2(Vvals)
 
 A3 = np.real(Uhat0)
 
-Uhat0vector = np.array([np.ndarray.flatten(Uhat0.T)]).T   #create the column vector form of Uhat0 and Vhat0 and stack them
+Uhat0vector = np.array([np.ndarray.flatten(Uhat0.T)]).T   #create the column vector form of Uhat0 and Vhat0
 Vhat0vector = np.array([np.ndarray.flatten(Vhat0.T)]).T
 UVhat0vector = np.vstack((Uhat0vector, Vhat0vector))   #stack the U and V column vectors into one large column vector
 
@@ -77,7 +77,7 @@ VhatVectorSol = solFFTy[n**2:, :]
 
 A7 = np.real(UhatVectorSol[4, :])
 
-UhatSol = UhatVectorSol.reshape((n, n, len(tvals))).T   #reshape all of the U hat and V hat vectord to matrices for each t value
+UhatSol = UhatVectorSol.reshape((n, n, len(tvals))).T   #reshape all of the U hat and V hat vectors to matrices for each t value
 VhatSol = VhatVectorSol.reshape((n, n, len(tvals))).T
 
 A8 = np.real(UhatSol)
@@ -114,26 +114,76 @@ def cheb(N):
 
 m = 2   #define initial conditions
 alpha = 1
-N = 30
+n = 30
 
-[D, x] = cheb(N)   #create Chebyshev differentiation matrix and Chebyshev points
-x = x.reshape(N+1)   #flatten Chebyshev points for the solver
-D2 = D@D   #square differentiation matrix to get the second derivative matrix
+[D, x] = cheb(n)   #create Chebyshev differentiation matrix and Chebyshev points
+x = x.reshape(n + 1)   #flatten Chebyshev points for the solver
+D2matrix = D@D   #square differentiation matrix to get the second derivative matrix
 
-x = x * (L / 2)   #rescale the x points and the derivative
-D2 = 4/(L**2)*D2
+x = x * L   #rescale the x points and the derivative
+D2matrix = (1 / (L ** 2)) * D2matrix
 
-D2 = D2[1:-1, 1:-1]   #remove first row and column of the matrix to match boundary conditions
+D2matrix = D2matrix[1:-1, 1:-1]   #remove first row and column of the matrix to match boundary conditions
 x2 = x[1:-1]   #remove first and last x points to match boundary conditions
 
 y2 = x2.copy()   #create y values and generate X and Y meshgrids
 [X, Y] = np.meshgrid(x2, y2)
 
-tspan = np.arange(0, 25+dt, dt)   #generate t values
+tvals = np.arange(0, 25+dt, dt)   #generate t values
+trange = [0, 25]
 
-I = np.eye(len(D2))   #generate the Laplacian matrix for Chebyshev
-Lap = np.kron(D2, I) + np.kron(I, D2)
+I = np.eye(len(D2matrix))   #generate the Laplacian matrix for Chebyshev
+Lap = np.kron(D2matrix, I) + np.kron(I, D2matrix)
 
 A10 = Lap
 A11 = Y
 
+U0vals = (np.tanh(np.sqrt(X ** 2 + Y ** 2)) - alpha) * np.cos(m * np.angle(X + 1j * Y) - np.sqrt(X ** 2 + Y ** 2))   #define initial conditions
+V0vals = (np.tanh(np.sqrt(X ** 2 + Y ** 2)) - alpha) * np.sin(m * np.angle(X + 1j * Y) - np.sqrt(X ** 2 + Y ** 2))
+
+A12 = V0vals
+
+U0vector = np.array([np.ndarray.flatten(U0vals.T)]).T   #create the column vector form of U0 and V0
+V0vector = np.array([np.ndarray.flatten(V0vals.T)]).T
+UV0vector = np.vstack((U0vector, V0vector))   #stack the U and V column vectors into one large column vector
+
+A13 = UV0vector
+
+def RDsystemCheb(t, UVvector, Lap, n, beta, D1, D2):
+   U = UVvector[0:((n-1)**2)]   #unstack the U and V vectors
+   V = UVvector[((n-1)**2):2*((n-1)**2)]
+   
+   U_t = U - (U ** 3) - ((V ** 2) * U) + (beta * (U ** 2) * V) + (beta * (V ** 3)) + (D1 * (Lap @ U))   #gets U_t from the PDE
+   V_t = (-beta * (U ** 3)) + (-beta * (V ** 2) * U) - V + ((U ** 2) * V) + (V ** 3) + (D2 * (Lap @ V))   #gets V_t from the PDE
+   
+   return np.concatenate((U_t, V_t))   #return the single stacked vector for U_t and V_t
+
+solCheb = integrate.solve_ivp(lambda t, UVvector: RDsystemCheb(t, UVvector, Lap, n, beta, D1, D2), trange, np.ndarray.flatten(UV0vector), t_eval=tvals)
+solChebY = solCheb.y
+
+A14 = solChebY.T
+
+UvectorSol = solChebY[0:(n-1)**2, :]   #unstack all of the U and V vectors for each t value
+VvectorSol = solChebY[(n-1)**2:, :]
+
+A15 = VvectorSol[:, 4]
+
+Usol = UvectorSol.reshape((n-1, n-1, len(tvals))).T   #reshape all of the U and V vectors to matrices for each t value
+Vsol = VvectorSol.reshape((n-1, n-1, len(tvals))).T
+
+Utsol = Usol[4, :, :]   #get the U and V solutions at t=2
+Vtsol = Vsol[4, :, :]
+
+Utsol = np.pad(Utsol, [1,1])
+Vtsol = np.pad(Vtsol, [1,1])
+
+A16 = Utsol
+
+y = x.copy()   #create y values and generate X and Y meshgrids
+[X, Y] = np.meshgrid(x, y)
+
+'''fig,ax = plt.subplots(subplot_kw = {"projection":"3d"}, figsize=(7, 7))   #plot the U solution at t=2
+surf = ax.plot_surface(X, Y, A16, cmap='magma')
+plt.xlabel('x')
+plt.ylabel('y')
+plt.show()   #'''
